@@ -24,3 +24,6 @@ Raporu (ZEB_PROJECT_SMS) çalıştırın ve button1 ve button2 kullanarak sekmel
 Sekme 1'de öğrenci bilgilerini filtrelemek ve ilgili öğrenci bilgilerini görüntülemek için öğrenci kimliklerini girin.
 Sekme 2'de, veri eklemek veya güncellemek için dosya yükleme işlevselliğini kullanın.
 Excelden alınan verileri z'li tablolara  '&ALVSAVE' düğmesini kullanarak kaydedin.
+
+ISSUES dan görüntüleri görebilirsiniz.
+Z'li tablolar ve structure yapısı/ GUI Görüntüsü #2
