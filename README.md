@@ -1,6 +1,6 @@
 # Final_Case
 ZEB_Projesi _SMS(STUDENT MANAGMENT SYSTEM)
-Bu depo, ZEB Projesi SMS uygulaması için ABAP kodunu içerir. Uygulama, öğrenci ve ders bilgilerini yönetir, kullanıcılara Excel dosyalarından veri yükleme, veriyi ALV  görüntüleme ve çeşitli işlemleri gerçekleştirme imkanı sağlar.
+Bu depo, ZEB_Projesi_SMS uygulaması için ABAP kodunu içerir. Uygulama, öğrenci ve ders bilgilerini yönetir, kullanıcılara Excel dosyalarından veri yükleme, veriyi ALV  görüntüleme ve çeşitli işlemleri gerçekleştirme imkanı sağlar.
 
 =>SAP 770 de yazılmış bir ABAP kodudur.
 
