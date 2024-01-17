@@ -1,0 +1,371 @@
+*&---------------------------------------------------------------------*
+*& Report ZEB_PROJECT_SMS
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zeb_project_sms.
+TABLES : zee_HSTUDENT,
+         zee_ICOURSE.
+
+DATA: BEGIN OF gs_HSTUDENT,
+        mandt      LIKE zee_HSTUDENT-mandt,
+        student_id LIKE zee_HSTUDENT-student_id,
+        s_name     LIKE zee_HSTUDENT-s_name,
+        s_surname  LIKE zee_HSTUDENT-s_surname,
+        s_email    LIKE zee_HSTUDENT-s_email,
+        s_gender   LIKE zee_HSTUDENT-s_gender,
+      END OF gs_HSTUDENT.
+
+DATA : BEGIN OF gs_ICOURSE,
+         mandt           LIKE zee_ICOURSE-mandt,
+         student_id      LIKE zee_ICOURSE-student_id,
+         section_id      LIKE zee_ICOURSE-section_id,
+         semester        LIKE zee_ICOURSE-semester,
+         s_year          LIKE zee_ICOURSE-s_year,
+         course_name     LIKE zee_ICOURSE-course_name,
+         building_no     LIKE zee_ICOURSE-building_no,
+         s_date          LIKE zee_ICOURSE-s_date,
+         grade           LIKE zee_ICOURSE-grade,
+         room_no         LIKE zee_ICOURSE-room_no,
+         departmant_name LIKE zee_ICOURSE-departmant_name,
+       END OF gs_ICOURSE.
+TYPES: BEGIN OF zsdata,
+         student_id      TYPE i,
+         section_id      TYPE string,
+         semester        TYPE string,
+         s_year          TYPE string,
+         course_name     TYPE string,
+         building_no     TYPE string,
+         s_date          TYPE string,
+         grade           TYPE string,
+         room_no         TYPE string,
+         departmant_name TYPE string,
+         s_name          TYPE string,
+         s_surname       TYPE string,
+         s_email         TYPE string,
+         s_gender        TYPE string,
+       END OF zsdata.
+
+
+DATA : gt_HSTUDENT LIKE TABLE OF gs_HSTUDENT,
+       gt_ICOURSE  LIKE TABLE OF gs_ICOURSE,
+       gt_data     TYPE STANDARD TABLE OF zsdata,
+       gs_data     TYPE zsdata,
+       gtz_data    TYPE STANDARD TABLE OF zsdata,
+       gsz_data    TYPE zsdata.
+
+DATA : gt_fcat   TYPE lvc_t_fcat,
+       gs_layout TYPE lvc_s_layo.
+
+FIELD-SYMBOLS: <fs_zee_hstudent> LIKE LINE OF gt_HSTUDENT,
+               <fs_zee_ICOURSE>  LIKE LINE OF gt_ICOURSE,
+               <fs_zee_data>     LIKE LINE OF gt_data.
+
+SELECTION-SCREEN BEGIN OF TABBED BLOCK mytab FOR 10 LINES.
+  SELECTION-SCREEN TAB (20) button1 USER-COMMAND tab1 DEFAULT SCREEN 1001.
+  SELECTION-SCREEN TAB (20) button2 USER-COMMAND tab2 DEFAULT SCREEN 1002.
+SELECTION-SCREEN END OF BLOCK mytab.
+
+SELECTION-SCREEN BEGIN OF SCREEN 1001 AS SUBSCREEN.
+  SELECT-OPTIONS: s_sid FOR zee_HSTUDENT-student_id,
+                  s_secid FOR zee_ICOURSE-section_id.
+  " Burada SELECT-OPTIONS kullanarak s_mandt ve s_student_id'yi filtreledim.
+  SELECT * FROM zee_HSTUDENT INTO TABLE gt_HSTUDENT
+  WHERE student_id IN s_sid.
+
+  " MANDT alan#n# WHERE ko#ulundan ç#kartt#k, çünkü mü#teri ba##ml#l### zaten otomatik olarak ele al#n#r.
+  SELECT * FROM zee_ICOURSE INTO TABLE gt_ICOURSE
+  WHERE student_id IN s_sid.
+SELECTION-SCREEN END OF SCREEN 1001.
+
+SELECTION-SCREEN BEGIN OF SCREEN 1002 AS SUBSCREEN.
+  PARAMETERS: p_fname TYPE localfile .
+
+SELECTION-SCREEN END OF SCREEN 1002.
+
+INITIALIZATION.
+  button1 = 'TAB1'.
+  button2 = 'TAB2'.
+  mytab-prog = sy-repid.
+  mytab-dynnr = 1002.
+  mytab-activetab = 'BUTTON2'.
+
+AT SELECTION-SCREEN.
+
+  CASE sy-ucomm.
+    WHEN 'TAB1'.
+      MESSAGE 'TAB 1 Klicked!' TYPE 'S'.
+    WHEN 'TAB2'.
+      MESSAGE 'TAB 2 Klicked!' TYPE 'S'.
+    WHEN OTHERS.
+  ENDCASE.
+
+START-OF-SELECTION.
+  WRITE: /'ACTIVE TAB', mytab-activetab.
+  WRITE: / 'ACTIVE SUBSCREEN', mytab-dynnr.
+
+
+START-OF-SELECTION.
+  IF s_sid-low >= '1' AND s_sid-high <= '99'.
+    PERFORM upload_data.
+    PERFORM alv.
+  ENDIF.
+  IF s_sid-low >= '100' AND s_sid-high <= '105'.
+    PERFORM get_data.
+    PERFORM join_tables.
+    PERFORM alv_ZTABLE.
+  ENDIF.
+
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_fname.
+  PERFORM f4_fname USING p_fname.
+  PERFORM upload_data.
+FORM f4_fname USING p_fname TYPE localfile.
+
+  DATA: file_table TYPE filetable,
+        file_line  TYPE file_table,
+        rc         TYPE i.
+
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      default_extension       = 'xlsx'
+    CHANGING
+      file_table              = file_table
+      rc                      = rc
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5.
+
+  READ TABLE file_table INTO file_line INDEX 1.
+  IF sy-subrc = 0.
+    p_fname = file_line-filename.
+  ENDIF.
+
+ENDFORM. "f4_fname
+
+FORM upload_data.
+  DATA: lt_file      LIKE alsmex_tabline OCCURS 0 WITH HEADER LINE,
+        ls_file      TYPE alsmex_tabline,
+        lv_rowNum    TYPE  alsmex_tabline-row,
+        gs_data      TYPE  zsdata,
+        gs_savetable TYPE zsdata.
+  CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+    EXPORTING
+      filename                = p_fname
+      i_begin_col             = 1
+      i_begin_row             = 2
+      i_end_col               = 15
+      i_end_row               = 1000
+    TABLES
+      intern                  = lt_file
+    EXCEPTIONS
+      inconsistent_parameters = 1
+      upload_ole              = 2
+      OTHERS                  = 3.
+
+  IF sy-subrc NE 0 OR lt_file[] IS INITIAL.
+    MESSAGE 'Dosya Okunamad# !' TYPE 'I'.
+  ELSE.
+    LOOP AT lt_file.
+*      CLEAR gs_savetable.
+      CASE lt_file-col.
+        WHEN '0001'.
+          TRY.
+              MOVE  lt_file-value TO gs_savetable-student_id .
+            CATCH cx_sy_conversion_no_number INTO DATA(conversion_error).
+          ENDTRY.
+        WHEN '0002'.
+          MOVE lt_file-value TO gs_savetable-section_id.
+        WHEN '0003'.
+          MOVE  lt_file-value TO gs_savetable-semester.
+        WHEN '0004'.
+          MOVE   lt_file-value TO gs_savetable-s_year.
+        WHEN '0005'.
+          MOVE   lt_file-value TO gs_savetable-course_name .
+        WHEN '0006'.
+          MOVE   lt_file-value TO gs_savetable-building_no .
+        WHEN '0007'.
+          MOVE   lt_file-value TO gs_savetable-s_date.
+        WHEN '0008'.
+          MOVE   lt_file-value TO gs_savetable-grade .
+        WHEN '0009'.
+          MOVE   lt_file-value TO gs_savetable-room_no  .
+        WHEN '0010'.
+          MOVE   lt_file-value TO gs_savetable-departmant_name .
+        WHEN '0011'.
+          MOVE   lt_file-value TO gs_savetable-s_name .
+        WHEN '0012'.
+          MOVE   lt_file-value TO gs_savetable-s_surname.
+        WHEN '0013'.
+          MOVE   lt_file-value TO gs_savetable-s_email.
+        WHEN '0014'.
+          MOVE   lt_file-value TO gs_savetable-s_gender.
+      ENDCASE.
+      AT END OF row.
+        APPEND gs_savetable TO gt_data.
+        CLEAR gs_savetable.
+      ENDAT.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.
+
+FORM get_data.
+
+  SELECT mandt student_id s_name s_surname s_email s_gender
+    FROM zee_hstudent INTO TABLE gt_HSTUDENT
+  WHERE student_id IN s_sid.
+
+  IF gt_hstudent[] IS INITIAL.
+    MESSAGE 'Girilen kay#tlara ili#kin kay#t bulunamad#' TYPE 'I'.
+  ELSE.
+    SELECT mandt student_id section_id semester s_year course_name building_no s_date grade room_no departmant_name
+      FROM zee_icourse INTO TABLE gt_ICOURSE
+      FOR ALL ENTRIES IN gt_hstudent
+    WHERE student_id = gt_HSTUDENT-student_id.
+  ENDIF.
+ENDFORM.
+
+FORM join_tables.
+
+  LOOP AT gt_icourse ASSIGNING <fs_zee_ICOURSE>.
+    IF <fs_zee_ICOURSE> IS ASSIGNED.
+      CLEAR gsz_data.
+      MOVE-CORRESPONDING <fs_zee_ICOURSE> TO gsz_data.
+
+      READ TABLE gt_hstudent ASSIGNING <fs_zee_HSTUDENT>
+        WITH KEY student_id = <fs_zee_ICOURSE>-student_id.
+      IF sy-subrc IS INITIAL AND <fs_zee_HSTUDENT> IS ASSIGNED.
+        MOVE-CORRESPONDING <fs_zee_HSTUDENT> TO gsz_data.
+      ENDIF.
+      APPEND gsz_data TO gtz_data.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+
+FORM alv.
+  CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name = 'ZSDATA'
+    CHANGING
+      ct_fieldcat      = gt_fcat.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY_LVC'
+    EXPORTING
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'PF_STATUS_SET'
+      i_callback_user_command  = 'USER_COMMAND'
+      is_layout_lvc            = gs_layout
+      it_fieldcat_lvc          = gt_fcat
+      i_default                = 'X'
+      i_save                   = ' '
+*     IS_VARIANT               =
+    TABLES
+      t_outtab                 = gt_data.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.
+
+FORM alv_ZTABLE.
+  CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name = 'ZSDATA'
+    CHANGING
+      ct_fieldcat      = gt_fcat.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY_LVC'
+    EXPORTING
+      i_callback_program       = sy-repid
+      i_callback_pf_status_set = 'PF_STATUS_SET'
+      i_callback_user_command  = 'USER_COMMAND'
+      is_layout_lvc            = gs_layout
+      it_fieldcat_lvc          = gt_fcat
+      i_default                = 'X'
+      i_save                   = ' '
+*     IS_VARIANT               =
+    TABLES
+      t_outtab                 = gtz_data.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.
+
+FORM save_to_ztables.
+
+  IF s_sid-low < '1' OR s_sid-high > '99'.
+    " s_sid de#eri 1 ile 99 aras#nda de#ilse, hata mesaj# göster
+    MESSAGE 'Geçersiz s_sid de#eri. Kay#t i#lemi yap#lamaz.' TYPE 'E'.
+    EXIT.
+  ENDIF.
+
+  LOOP AT gt_data INTO gsz_data.
+    " Zee_HSTUDENT tablosuna kaydet
+    CLEAR gs_HSTUDENT.
+    gs_HSTUDENT-student_id = gsz_data-student_id.
+    gs_HSTUDENT-s_name = gsz_data-s_name.
+    gs_HSTUDENT-s_surname = gsz_data-s_surname.
+    gs_HSTUDENT-s_email = gsz_data-s_email.
+    gs_HSTUDENT-s_gender = gsz_data-s_gender.
+    APPEND gs_HSTUDENT TO gt_HSTUDENT.
+    CHECK sy-subrc = 0.
+    " Zee_ICOURSE tablosuna kaydet
+    CLEAR gs_ICOURSE.
+    gs_ICOURSE-student_id = gsz_data-student_id.
+    gs_ICOURSE-section_id = gsz_data-section_id.
+    gs_ICOURSE-semester = gsz_data-semester.
+    gs_ICOURSE-s_year = gsz_data-s_year.
+    gs_ICOURSE-course_name = gsz_data-course_name.
+    gs_ICOURSE-building_no = gsz_data-building_no.
+    gs_ICOURSE-s_date = gsz_data-s_date.
+    gs_ICOURSE-grade = gsz_data-grade.
+    gs_ICOURSE-room_no = gsz_data-room_no.
+    gs_ICOURSE-departmant_name = gsz_data-departmant_name.
+    APPEND gs_ICOURSE TO gt_ICOURSE.
+    CHECK sy-subrc = 0.
+  ENDLOOP.
+
+  " Z'li tablolara yap#lan de#i#iklikleri veritaban#na kaydet
+  LOOP AT gt_HSTUDENT INTO gs_HSTUDENT.
+    MODIFY zee_HSTUDENT FROM gs_HSTUDENT.
+    IF sy-subrc <> 0.
+      " Hata durumunu i#leyin (örne#in, bir hata mesaj# gösterin).
+      MESSAGE 'Kay#t güncellenemedi' TYPE 'E'.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+  LOOP AT gt_ICOURSE INTO gs_ICOURSE.
+    MODIFY zee_ICOURSE FROM gs_ICOURSE.
+    IF sy-subrc <> 0.
+      " Hata durumunu i#leyin (örne#in, bir hata mesaj# gösterin).
+      MESSAGE 'Kay#t güncellenemedi' TYPE 'E'.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+
+FORM pf_status_set USING p_extab TYPE slis_t_extab.
+  SET PF-STATUS 'ZSTANDARD1'.
+ENDFORM.
+
+FORM user_command USING r_ucomm     LIKE sy-ucomm
+                        rs_selfield TYPE slis_selfield.
+  CASE r_ucomm.
+    WHEN '&TABLE1'.
+      CALL TRANSACTION 'ZEE_HSTUDENT'.
+    WHEN '&TABLE2'.
+      CALL TRANSACTION 'ZEE_ICOURSE'.
+    WHEN '&ALVSAVE'.
+      PERFORM save_to_ztables.
+    WHEN OTHERS.
+  ENDCASE.
+ENDFORM.
