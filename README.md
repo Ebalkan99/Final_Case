@@ -1,6 +1,9 @@
 # Final_Case
 ZEB_Projesi _SMS(STUDENT MANAGMENT SYSTEM)
-Bu depo, ZEB Projesi SMS uygulaması için ABAP kodunu içerir. Uygulama, öğrenci ve ders bilgilerini yönetir, kullanıcılara Excel dosyalarından veri yükleme, veriyi ALV ızgarasında görüntüleme ve çeşitli işlemleri gerçekleştirme imkanı sağlar.
+Bu depo, ZEB Projesi SMS uygulaması için ABAP kodunu içerir. Uygulama, öğrenci ve ders bilgilerini yönetir, kullanıcılara Excel dosyalarından veri yükleme, veriyi ALV  görüntüleme ve çeşitli işlemleri gerçekleştirme imkanı sağlar.
+
+=>SAP 770 de yazılmış bir ABAP kodudur.
+
 İçerik
 ABAP Raporları
 
@@ -23,6 +26,7 @@ Kullanım
 Raporu (ZEB_PROJECT_SMS) çalıştırın ve button1 ve button2 kullanarak sekmeler arasında gezinin.
 Sekme 1'de öğrenci bilgilerini filtrelemek ve ilgili öğrenci bilgilerini görüntülemek için öğrenci kimliklerini girin.
 Sekme 2'de, veri eklemek veya güncellemek için dosya yükleme işlevselliğini kullanın.
+3 tane gui statusten oluşur. Table1 header ve Table2 item tablosunun bakım ekranına bağlanır.
 Excelden alınan verileri z'li tablolara  '&ALVSAVE' düğmesini kullanarak kaydedin.
 
 ISSUES dan görüntüleri görebilirsiniz.
